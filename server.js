@@ -8,6 +8,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import dotenv from 'dotenv';
 import morgan from 'morgan';
+import crypto from 'crypto';
 import { helmetConfig, corsConfig, rateLimiter } from './src/middleware/security.js';
 import { errorHandler, notFound } from './src/middleware/errorHandler.js';
 import { initializeDatabase } from './src/config/database.js';
@@ -16,6 +17,18 @@ import projectRoutes from './src/routes/projectRoutes.js';
 
 // Load environment variables
 dotenv.config();
+
+// Validate critical environment variables
+// JWT_SECRET is required for JWT token signing — if missing, generate a
+// temporary one so the server can still start (with a warning)
+const JWT_SECRET_DEFAULT = 'your_super_secret_jwt_key_change_in_production_1234567890';
+if (!process.env.JWT_SECRET || process.env.JWT_SECRET === JWT_SECRET_DEFAULT) {
+  console.warn('⚠️  WARNING: JWT_SECRET is not set or using default value!');
+  console.warn('⚠️  Using a temporary random JWT_SECRET for this session.');
+  console.warn('⚠️  Set JWT_SECRET in your environment variables for production.');
+  console.warn('⚠️  Tokens will be invalid after server restart until JWT_SECRET is set.');
+  process.env.JWT_SECRET = crypto.randomBytes(32).toString('hex');
+}
 
 // Initialize database
 initializeDatabase();

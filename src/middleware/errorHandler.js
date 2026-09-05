@@ -42,7 +42,11 @@ const handleJWTExpiredError = (error) => {
  * @returns {ApiError} - Formatted API error
  */
 const handleDuplicateFieldsError = (error) => {
-  const field = Object.keys(error.errors)[0];
+  // better-sqlite3 constraint error message format:
+  // "UNIQUE constraint failed: users.username"
+  // Extract the field name from the error message
+  const match = error.message.match(/UNIQUE constraint failed: \w+\.(\w+)/);
+  const field = match ? match[1] : 'field';
   const message = `Duplicate field value: ${field}. Please use another value.`;
   return new ApiError(message, 409);
 };
