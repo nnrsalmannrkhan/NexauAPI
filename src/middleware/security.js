@@ -26,8 +26,18 @@ export const helmetConfig = helmet({
         "https://cdn.tailwindcss.com",
         "https://fonts.googleapis.com",
       ],
-      // Allow CDN scripts (Tailwind CSS, etc.)
+            // Allow CDN scripts (Tailwind CSS, etc.)
       scriptSrc: [
+        "'self'",
+        "'unsafe-inline'",
+        "https://cdn.tailwindcss.com",
+        "https://cdnjs.cloudflare.com",
+      ],
+      // Allow inline event handlers (onclick, onload, etc.)
+      // Helmet defaults script-src-attr to 'none' which blocks all inline
+      // event handlers — we must explicitly override it
+      scriptSrcAttr: ["'unsafe-inline'"],
+      scriptSrcElem: [
         "'self'",
         "'unsafe-inline'",
         "https://cdn.tailwindcss.com",

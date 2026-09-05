@@ -59,8 +59,8 @@ app.use(express.static(path.join(__dirname, 'public'), {
     } else if (ext === '.js') {
       res.setHeader('Content-Type', 'application/javascript');
     }
-  },
-  maxAge: '1d',
+    },
+  maxAge: 0,
 }));
 
 // SPA fallback - serve index.html for all non-API GET requests
