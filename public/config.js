@@ -3,8 +3,13 @@
  * Handles API connection settings and environment configuration
  */
 
-// Environment switcher - Easily switch between localhost and production
-const ENVIRONMENT = 'LOCAL'; // Change to 'PRODUCTION' for live deployment
+// Auto-detect environment based on hostname
+// On localhost → use absolute URL for local development
+// On any other host (production/Render) → use relative URL (same-origin)
+// This ensures the frontend talks to its own backend without CORS issues
+const isLocal = window.location.hostname === 'localhost' ||
+                window.location.hostname === '127.0.0.1' ||
+                window.location.hostname === '::1';
 
 // API Endpoints Configuration
 const API_CONFIGS = {
@@ -16,11 +21,15 @@ const API_CONFIGS = {
     },
     PRODUCTION: {
         name: 'Production Server',
-        baseUrl: 'https://your-production-domain.com/api/v1',
-        healthUrl: 'https://your-production-domain.com/health',
+        // Relative URL — same-origin, no CORS issues on Render
+        baseUrl: '/api/v1',
+        healthUrl: '/health',
         environment: 'production'
     }
 };
+
+// Set environment automatically
+const ENVIRONMENT = isLocal ? 'LOCAL' : 'PRODUCTION';
 
 // Current active configuration
 const config = API_CONFIGS[ENVIRONMENT];
@@ -55,8 +64,19 @@ window.setEnvironment = function(env) {
     return false;
 };
 
-// Load saved environment preference
+// Load saved environment preference (honors user override)
 const savedEnv = localStorage.getItem('appEnvironment');
 if (savedEnv && API_CONFIGS[savedEnv]) {
     window.setEnvironment(savedEnv);
 }
+
+// Update environment indicator after DOM is loaded (for auto-detected env)
+document.addEventListener('DOMContentLoaded', () => {
+    if (!savedEnv) {
+        const envIndicator = document.getElementById('env-indicator');
+        if (envIndicator) {
+            envIndicator.textContent = config.name;
+            envIndicator.className = 'font-medium ' + (ENVIRONMENT === 'PRODUCTION' ? 'text-orange-600' : 'text-green-600');
+        }
+    }
+});

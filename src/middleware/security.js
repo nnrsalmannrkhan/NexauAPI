@@ -71,16 +71,23 @@ export const helmetConfig = helmet({
 /**
  * CORS configuration
  * Restricts cross-origin requests to allowed origins
+ * Origins can be configured via CORS_ALLOWED_ORIGINS env var (comma-separated)
+ * In production, defaults to echoing the request origin for flexibility
  */
 export const corsConfig = cors({
   origin: (origin, callback) => {
     // Allow requests with no origin (mobile apps, curl, etc.)
     if (!origin) return callback(null, true);
 
-    // In production, you would check against a whitelist of allowed origins
-        const allowedOrigins = process.env.NODE_ENV === 'production'
-      ? ['https://yourdomain.com', 'https://api.yourdomain.com']
-      : ['http://localhost:3000', 'http://localhost:5000', 'http://localhost:5173', 'http://127.0.0.1:5173'];
+    // Read allowed origins from environment variable (comma-separated)
+    const envOrigins = process.env.CORS_ALLOWED_ORIGINS
+      ? process.env.CORS_ALLOWED_ORIGINS.split(',').map(o => o.trim())
+      : [];
+
+    // In development, allow localhost origins
+    const devOrigins = ['http://localhost:3000', 'http://localhost:5000', 'http://localhost:5173', 'http://127.0.0.1:5173'];
+
+    const allowedOrigins = envOrigins.length > 0 ? envOrigins : devOrigins;
 
     if (allowedOrigins.includes(origin)) {
       callback(null, true);
