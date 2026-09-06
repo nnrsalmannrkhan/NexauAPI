@@ -52,6 +52,18 @@ const handleDuplicateFieldsError = (error) => {
 };
 
 /**
+ * Handle read-only database errors
+ * Common on platforms like Render where the app directory may be read-only
+ * @param {Error} error - The error object
+ * @returns {ApiError} - Formatted API error
+ */
+const handleReadOnlyDbError = (error) => {
+  console.error('🔒 Database is read-only! This typically happens when the database path is in a read-only directory.');
+  console.error('🔒 On Render, set DB_PATH=/tmp/database.sqlite or ensure the app directory is writable.');
+  return new ApiError('Server configuration error. Please contact support.', 500);
+};
+
+/**
  * Handle validation errors
  * @param {Error} error - The error object
  * @returns {ApiError} - Formatted API error
@@ -114,11 +126,18 @@ export const errorHandler = (err, req, res, next) => {
     let error = { ...err };
     error.message = err.message;
 
-    // Handle specific error types
+        // Handle specific error types
     if (error.name === 'JsonWebTokenError') error = handleJWTError(error);
     if (error.name === 'TokenExpiredError') error = handleJWTExpiredError(error);
     if (error.code === 'SQLITE_CONSTRAINT') error = handleDuplicateFieldsError(error);
+    if (error.code === 'SQLITE_READONLY' || error.code === 'SQLITE_CANTOPEN') error = handleReadOnlyDbError(error);
     if (error.name === 'ValidationError') error = handleValidationError(error);
+
+    // Log full error details to console for debugging (captured by Render logs)
+    console.error('ERROR 💥', error.message);
+    if (error.stack && !error.isOperational) {
+      console.error('Stack:', error.stack);
+    }
 
     sendErrorProd(error, res);
   }

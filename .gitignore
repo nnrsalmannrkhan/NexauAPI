@@ -5,3 +5,6 @@ package-lock.json
 .DS_Store  
 server_output*.txt  
 server_error*.txt  
+test_register.mjs
+temp_payload.json
+  

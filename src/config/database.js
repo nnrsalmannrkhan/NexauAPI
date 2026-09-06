@@ -16,7 +16,13 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 // Database path from environment or default
-const dbPath = process.env.DB_PATH || path.join(__dirname, '../../database.sqlite');
+// On Render, the app directory may be read-only at runtime.
+// Use /tmp/ for writable storage when DB_PATH is not explicitly set
+// and we detect we're on Render (RENDER env var is set by Render.com)
+const isRender = !!process.env.RENDER;
+const dbPath = process.env.DB_PATH || (isRender
+  ? '/tmp/database.sqlite'
+  : path.join(__dirname, '../../database.sqlite'));
 
 // Initialize database connection
 let db;
@@ -71,7 +77,23 @@ export const initializeDatabase = () => {
       CREATE INDEX IF NOT EXISTS idx_projects_status ON projects(status);
     `);
 
-    console.log('✅ Database schema initialized successfully');
+        console.log('✅ Database schema initialized successfully');
+
+    // Verify database is writable (catches read-only filesystem issues on Render)
+    try {
+      const testStmt = db.prepare('CREATE TABLE IF NOT EXISTS _writable_test (id INTEGER PRIMARY KEY);');
+      testStmt.run();
+      const cleanupStmt = db.prepare('DROP TABLE IF EXISTS _writable_test;');
+      cleanupStmt.run();
+    } catch (writeError) {
+      const dbPathStr = typeof dbPath === 'string' ? dbPath : String(dbPath);
+      console.error('❌ Database is READ-ONLY! Write operations will fail.');
+      console.error('❌ This is likely because the database path is in a read-only directory.');
+      console.error('❌ On Render, set DB_PATH=/tmp/database.sqlite in Environment Variables.');
+      console.error('❌ Database path:', dbPathStr);
+      console.error('❌ Write error:', writeError.message);
+      process.exit(1);
+    }
   } catch (error) {
     console.error('❌ Database schema initialization failed:', error.message);
     process.exit(1);
