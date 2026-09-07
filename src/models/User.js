@@ -33,40 +33,54 @@ export const comparePassword = async (password, hashedPassword) => {
  * @returns {Object} - Created user object (without password)
  */
 export const createUser = async (userData) => {
-  const { username, email, password } = userData;
+  try {
+    const { username, email, password } = userData;
 
-  const db = getDb();
+    const db = getDb();
 
-  // Check if username already exists
-  const existingUsername = db.prepare('SELECT id FROM users WHERE username = ?').get(username);
-  if (existingUsername) {
-    throw new ApiError('Username already exists', 409);
+    // Check if username already exists
+    const existingUsername = db.prepare('SELECT id FROM users WHERE username = ?').get(username);
+    if (existingUsername) {
+      throw new ApiError('Username already exists', 409);
+    }
+
+    // Check if email already exists
+    const existingEmail = db.prepare('SELECT id FROM users WHERE email = ?').get(email);
+    if (existingEmail) {
+      throw new ApiError('Email already exists', 409);
+    }
+
+    // Hash password
+    const hashedPassword = await hashPassword(password);
+
+    // Insert user
+    const stmt = db.prepare(`
+      INSERT INTO users (username, email, password, role)
+      VALUES (?, ?, ?, 'user')
+    `);
+
+    const info = stmt.run(username, email, hashedPassword);
+
+    // Return user without password
+    return {
+      id: info.lastInsertRowid,
+      username,
+      email,
+      role: 'user',
+    };
+  } catch (error) {
+    // If already an ApiError, re-throw as-is (preserves duplicates, validation errors)
+    if (error instanceof ApiError) throw error;
+
+    // Log the actual database error (captured by Render/server logs for debugging)
+    console.error('❌ Database error during user creation:', error.message);
+
+    // Wrap non-ApiError database exceptions as operational errors
+    throw new ApiError(
+      `User creation failed: ${error.message || 'Database error'}`,
+      500
+    );
   }
-
-  // Check if email already exists
-  const existingEmail = db.prepare('SELECT id FROM users WHERE email = ?').get(email);
-  if (existingEmail) {
-    throw new ApiError('Email already exists', 409);
-  }
-
-  // Hash password
-  const hashedPassword = await hashPassword(password);
-
-  // Insert user
-  const stmt = db.prepare(`
-    INSERT INTO users (username, email, password, role)
-    VALUES (?, ?, ?, 'user')
-  `);
-
-  const info = stmt.run(username, email, hashedPassword);
-
-  // Return user without password
-  return {
-    id: info.lastInsertRowid,
-    username,
-    email,
-    role: 'user',
-  };
 };
 
 /**
