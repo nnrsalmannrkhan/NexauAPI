@@ -69,54 +69,19 @@ export const helmetConfig = helmet({
 });
 
 /**
- * CORS configuration (options-delegate form)
- * Restricts cross-origin requests to allowed origins
- * Origins can be configured via CORS_ALLOWED_ORIGINS env var (comma-separated)
- * If not set, defaults to allowing same-origin + localhost origins (production-safe when frontend uses relative URLs)
+ * CORS configuration
+ * DISABLED: Allows all origins (*)
  *
- * Handles proxy headers (X-Forwarded-Proto, X-Forwarded-Host) for Render.com and similar platforms
- * where the actual user-facing URL differs from req.protocol/req.headers.host
+ * ⚠️  SECURITY WARNING: This configuration removes CSRF protection.
+ * All cross-origin requests are allowed. Only safe for public APIs
+ * without sensitive state changes or authentication-required endpoints.
+ *
+ * Use CORS_ALLOWED_ORIGINS env var to re-enable strict mode:
+ *   CORS_ALLOWED_ORIGINS=https://my-app.onrender.com,http://localhost:5000
  */
 const corsOptionsDelegate = (req, callback) => {
-  const origin = req.headers.origin;
-
-  // Allow requests with no origin (mobile apps, curl, Postman, etc.)
-  if (!origin) return callback(null, { origin: true, credentials: true });
-
-  // Read allowed origins from environment variable (comma-separated)
-  const envOrigins = process.env.CORS_ALLOWED_ORIGINS
-    ? process.env.CORS_ALLOWED_ORIGINS.split(',').map(o => o.trim())
-    : [];
-
-  // In development, allow localhost origins
-  const devOrigins = ['http://localhost:3000', 'http://localhost:5000', 'http://localhost:5173', 'http://127.0.0.1:5173'];
-
-  // If CORS_ALLOWED_ORIGINS is explicitly set, use strict allowlist mode
-  if (envOrigins.length > 0) {
-    if (envOrigins.includes(origin)) {
-      return callback(null, { origin: true, credentials: true });
-    } else {
-      return callback(new Error('Not allowed by CORS'));
-    }
-  }
-
-  // Fallback mode (when no env config): allow devOrigins + same-origin
-  if (devOrigins.includes(origin)) {
-    return callback(null, { origin: true, credentials: true });
-  }
-
-  // Allow same-origin requests, accounting for proxy headers (Render, load balancers, etc.)
-  // On Render: X-Forwarded-Proto = https, X-Forwarded-Host = my-app.onrender.com
-  // Direct requests: use req.protocol and req.headers.host
-  const protocol = req.headers['x-forwarded-proto'] || req.protocol;
-  const host = req.headers['x-forwarded-host'] || req.headers.host;
-  const requestOrigin = `${protocol}://${host}`;
-
-  if (origin === requestOrigin) {
-    return callback(null, { origin: true, credentials: true });
-  }
-
-  callback(new Error('Not allowed by CORS'));
+  // Allow all origins
+  return callback(null, { origin: true, credentials: true });
 };
 
 export const corsConfig = cors(corsOptionsDelegate);
