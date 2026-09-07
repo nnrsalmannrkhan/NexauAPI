@@ -69,35 +69,49 @@ export const helmetConfig = helmet({
 });
 
 /**
- * CORS configuration
+ * CORS configuration (options-delegate form)
  * Restricts cross-origin requests to allowed origins
  * Origins can be configured via CORS_ALLOWED_ORIGINS env var (comma-separated)
- * In production, defaults to echoing the request origin for flexibility
+ * If not set, defaults to allowing same-origin + localhost origins (production-safe when frontend uses relative URLs)
  */
-export const corsConfig = cors({
-  origin: (origin, callback) => {
-    // Allow requests with no origin (mobile apps, curl, etc.)
-    if (!origin) return callback(null, true);
+const corsOptionsDelegate = (req, callback) => {
+  const origin = req.headers.origin;
 
-    // Read allowed origins from environment variable (comma-separated)
-    const envOrigins = process.env.CORS_ALLOWED_ORIGINS
-      ? process.env.CORS_ALLOWED_ORIGINS.split(',').map(o => o.trim())
-      : [];
+  // Allow requests with no origin (mobile apps, curl, Postman, etc.)
+  if (!origin) return callback(null, { origin: true, credentials: true });
 
-    // In development, allow localhost origins
-    const devOrigins = ['http://localhost:3000', 'http://localhost:5000', 'http://localhost:5173', 'http://127.0.0.1:5173'];
+  // Read allowed origins from environment variable (comma-separated)
+  const envOrigins = process.env.CORS_ALLOWED_ORIGINS
+    ? process.env.CORS_ALLOWED_ORIGINS.split(',').map(o => o.trim())
+    : [];
 
-    const allowedOrigins = envOrigins.length > 0 ? envOrigins : devOrigins;
+  // In development, allow localhost origins
+  const devOrigins = ['http://localhost:3000', 'http://localhost:5000', 'http://localhost:5173', 'http://127.0.0.1:5173'];
 
-    if (allowedOrigins.includes(origin)) {
-      callback(null, true);
+  // If CORS_ALLOWED_ORIGINS is explicitly set, use strict allowlist mode
+  if (envOrigins.length > 0) {
+    if (envOrigins.includes(origin)) {
+      return callback(null, { origin: true, credentials: true });
     } else {
-      callback(new Error('Not allowed by CORS'));
+      return callback(new Error('Not allowed by CORS'));
     }
-  },
-  credentials: true,
-  optionsSuccessStatus: 200,
-});
+  }
+
+  // Fallback mode (when no env config): allow devOrigins + same-origin
+  if (devOrigins.includes(origin)) {
+    return callback(null, { origin: true, credentials: true });
+  }
+
+  // Allow same-origin requests (for production with relative URLs)
+  const requestOrigin = `${req.protocol}://${req.headers.host}`;
+  if (origin === requestOrigin) {
+    return callback(null, { origin: true, credentials: true });
+  }
+
+  callback(new Error('Not allowed by CORS'));
+};
+
+export const corsConfig = cors(corsOptionsDelegate);
 
 /**
  * Rate limiting middleware
