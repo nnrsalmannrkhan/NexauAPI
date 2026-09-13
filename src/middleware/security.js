@@ -70,34 +70,21 @@ export const helmetConfig = helmet({
 
 /**
  * CORS configuration
- * Restricts cross-origin requests to allowed origins
- * Origins can be configured via CORS_ALLOWED_ORIGINS env var (comma-separated)
- * In production, defaults to echoing the request origin for flexibility
+ * DISABLED: Allows all origins (*)
+ *
+ * ⚠️  SECURITY WARNING: This configuration removes CSRF protection.
+ * All cross-origin requests are allowed. Only safe for public APIs
+ * without sensitive state changes or authentication-required endpoints.
+ *
+ * Use CORS_ALLOWED_ORIGINS env var to re-enable strict mode:
+ *   CORS_ALLOWED_ORIGINS=https://my-app.onrender.com,http://localhost:5000
  */
-export const corsConfig = cors({
-  origin: (origin, callback) => {
-    // Allow requests with no origin (mobile apps, curl, etc.)
-    if (!origin) return callback(null, true);
+const corsOptionsDelegate = (req, callback) => {
+  // Allow all origins
+  return callback(null, { origin: true, credentials: true });
+};
 
-    // Read allowed origins from environment variable (comma-separated)
-    const envOrigins = process.env.CORS_ALLOWED_ORIGINS
-      ? process.env.CORS_ALLOWED_ORIGINS.split(',').map(o => o.trim())
-      : [];
-
-    // In development, allow localhost origins
-    const devOrigins = ['http://localhost:3000', 'http://localhost:5000', 'http://localhost:5173', 'http://127.0.0.1:5173'];
-
-    const allowedOrigins = envOrigins.length > 0 ? envOrigins : devOrigins;
-
-    if (allowedOrigins.includes(origin)) {
-      callback(null, true);
-    } else {
-      callback(new Error('Not allowed by CORS'));
-    }
-  },
-  credentials: true,
-  optionsSuccessStatus: 200,
-});
+export const corsConfig = cors(corsOptionsDelegate);
 
 /**
  * Rate limiting middleware
